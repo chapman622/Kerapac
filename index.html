@@ -475,9 +475,9 @@
     },
 
     lightning: {
-      title: "MOVE – LIGHTNING",
+      title: "MOVE LIGHTNING",
       actions: [
-        { type: "text", text: "SURGE / DIVE" },
+        { type: "text", text: "SURGE OR DIVE" },
         { type: "icon", src: "icons/debilitate.png" }
       ],
       color: [124, 58, 237],
@@ -507,7 +507,7 @@
     },
 
     phase4: {
-      title: "PHASE 4 – ECHOES",
+      title: "PHASE 4 ECHOES",
       actions: [
         { type: "text", text: "KILL ECHOES" },
         { type: "text", text: "THEN KERAPAC" }
@@ -753,33 +753,55 @@
       if (currentCue === id) clearCueDisplay();
     }, cue.duration);
 
+    // Build full spoken + overlay text from ALL actions (text + icon names)
+    const parts = [];
+    cue.actions.forEach(action => {
+      if (action.type === "text") {
+        parts.push(action.text);
+      } else if (action.type === "icon") {
+        const name = iconName(action.src);
+        if (name) parts.push(name);
+      }
+    });
+    const fullText = parts.join(", ") || cue.title;
+
     // Overlay
-    if (!window.alt1) return;
-    try {
-      alt1.overLayClearGroup("kerapac-cue");
-      alt1.overLaySetGroup("kerapac-cue");
+    if (window.alt1) {
+      try {
+        alt1.overLayClearGroup("kerapac-cue");
+        alt1.overLaySetGroup("kerapac-cue");
 
-      const cx = Math.round(alt1.rsWidth / 2);
-      const cy = Math.round(alt1.rsHeight / 2) - 40;
-      const panelW = 520;
-      const panelH = 90;
+        const cx = Math.round(alt1.rsWidth / 2);
+        const cy = Math.round(alt1.rsHeight / 2) - 40;
 
-      // Simple text-focused overlay (icons are harder without pre-encoded data)
-      const mainText = cue.actions.filter(a => a.type === "text").map(a => a.text).join("  →  ") || cue.title;
-      textCenteredAt(mainText, color(cue.color[0], cue.color[1], cue.color[2]), 32, cx, cy, cue.duration);
+        // Show the full sequence on overlay
+        textCenteredAt(fullText, color(cue.color[0], cue.color[1], cue.color[2]), 28, cx, cy, cue.duration);
 
-      log("CUE → " + mainText, "hit");
-      speakActions(mainText);
-    } catch (e) {
-      log("Overlay error: " + (e.message || e), "info");
+        log("CUE → " + fullText, "hit");
+      } catch (e) {
+        log("Overlay error: " + (e.message || e), "info");
+      }
     }
+
+    // Always speak the full sequence
+    speakActions(fullText);
   }
 
   function speakActions(text) {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.replace(/→/g, ", "));
-    utterance.rate = 1.35;
+
+    // Clean text for TTS so it never says "forward slash" or weird symbols
+    let clean = text
+      .replace(/→/g, ", ")
+      .replace(/\//g, " or ")
+      .replace(/–/g, " ")
+      .replace(/—/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.rate = 1.30;
     utterance.pitch = 1.1;
     utterance.volume = masterVoiceVolume;
     window.speechSynthesis.speak(utterance);
