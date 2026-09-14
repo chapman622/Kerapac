@@ -1,0 +1,16 @@
+{
+  "appName": "Kerapac HM Cue Board",
+  "description": "Big on-screen cues for Kerapac Hard Mode. Manual buttons + auto chat reading.",
+  "appUrl": "./index.html?v=1",
+  "configUrl": "./appconfig.json",
+  "iconUrl": "",
+  "defaultWidth": 420,
+  "defaultHeight": 520,
+  "minWidth": 320,
+  "minHeight": 400,
+  "maxWidth": 600,
+  "maxHeight": 800,
+  "requestHandlers": [],
+  "activators": [],
+  "permissions": "pixel,overlay,gamestate"
+}

@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <title>Kerapac HM Cue Board</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #111216;
+      color: #e8e8e8;
+      padding: 10px;
+      user-select: none;
+      min-width: 320px;
+      --icon-size: 80px;
+      --icon-image-size: 64px;
+    }
+
+    body.transparent-mode {
+      background: transparent;
+    }
+
+    body.transparent-mode .cue-display {
+      background: transparent;
+      border-color: transparent !important;
+      padding: 0;
+    }
+
+    body.transparent-mode .waiting {
+      background: transparent;
+      border-color: transparent;
+    }
+
+    body.transparent-mode .action {
+      background: transparent;
+      border-color: transparent;
+    }
+
+    body.transparent-mode .arrow {
+      text-shadow: 0 2px 3px #000, 0 0 4px #000;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .brand {
+      font-size: 15px;
+      font-weight: 800;
+      color: #60a5fa;
+    }
+
+    .tab-btn {
+      border: 1px solid #33353d;
+      background: #1b1d23;
+      color: #aaa;
+      border-radius: 6px;
+      padding: 6px 9px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .tab-btn:hover {
+      color: #fff;
+      background: #252831;
+    }
+
+    #cueBoard {
+      display: block;
+    }
+
+    .waiting {
+      min-height: 230px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: #555963;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid #25272e;
+      border-radius: 10px;
+      background: #15171c;
+    }
+
+    .cue-display {
+      min-height: 230px;
+      border: 2px solid #333;
+      border-radius: 10px;
+      background: #15171c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      transition: border-color 0.15s;
+      overflow: hidden;
+    }
+
+    .actions {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: clamp(6px, 1.5vw, 14px);
+    }
+
+    .action {
+      min-width: 74px;
+      min-height: 74px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid #3b3e47;
+      background: #20232a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: #fff;
+      flex: 0 0 auto;
+    }
+
+    .action.icon {
+      width: var(--icon-size);
+      height: calc(var(--icon-size) + 18px);
+      padding: calc(var(--icon-size) * 0.06);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .action-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .action img {
+      width: var(--icon-image-size);
+      height: var(--icon-image-size);
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .action.text {
+      min-width: max(90px, calc(var(--icon-size) * 1.1));
+      min-height: calc(var(--icon-size) * 0.72);
+      padding: 10px 14px;
+      font-size: clamp(12px, calc(var(--icon-size) * 0.17), 22px);
+      line-height: 1.15;
+    }
+
+    .arrow {
+      color: #777b86;
+      font-size: clamp(18px, calc(var(--icon-size) * 0.30), 42px);
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
+    #settings {
+      display: none;
+    }
+
+    .settings-section {
+      background: #17191e;
+      border: 1px solid #292c34;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .settings-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #aaa;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .auto-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .auto-row label {
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .toggle {
+      width: 44px;
+      height: 24px;
+      background: #374151;
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex: 0 0 auto;
+    }
+
+    .toggle.on {
+      background: #16a34a;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: #fff;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: left 0.2s;
+    }
+
+    .toggle.on::after {
+      left: 23px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .setting-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .setting-label {
+      font-size: 13px;
+      color: #ddd;
+      font-weight: 600;
+    }
+
+    .setting-description {
+      font-size: 10px;
+      color: #777;
+      margin-top: 3px;
+    }
+
+    .slider-wrap {
+      width: 100%;
+      margin-top: 5px;
+    }
+
+    .slider-values {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #777;
+      font-size: 10px;
+      margin-top: 3px;
+    }
+
+    #iconSizeValue {
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    #iconSize {
+      width: 100%;
+      cursor: pointer;
+      accent-color: #60a5fa;
+    }
+
+    .status {
+      font-size: 11px;
+      color: #aaa;
+      margin-bottom: 8px;
+      min-height: 16px;
+    }
+
+    .status.ok { color: #4ade80; }
+    .status.warn { color: #fbbf24; }
+    .status.err { color: #f87171; }
+
+    .test-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .test-btn {
+      border: 0;
+      border-radius: 6px;
+      padding: 9px 5px;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .test-btn:hover {
+      filter: brightness(1.15);
+    }
+
+    .shatter  { background: #dc2626; }
+    .slam     { background: #ea580c; }
+    .lightning{ background: #7c3aed; }
+    .phase2   { background: #2563eb; }
+    .phase3   { background: #0891b2; }
+    .phase4   { background: #be185d; }
+    .def      { background: #4b5563; }
+
+    .log {
+      background: #0c0d10;
+      border: 1px solid #292c34;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 10px;
+      height: 150px;
+      overflow-y: auto;
+      font-family: monospace;
+      color: #9ca3af;
+    }
+
+    .log div { margin-bottom: 2px; }
+    .log .hit { color: #4ade80; }
+    .log .info { color: #60a5fa; }
+
+    .help {
+      font-size: 10px;
+      color: #777;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 430px) {
+      body { padding: 6px; }
+      .cue-display { min-height: 210px; }
+      .waiting { min-height: 210px; }
+      .arrow { font-size: clamp(16px, calc(var(--icon-size) * 0.27), 32px); }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div class="brand">KERAPAC HM</div>
+    <div style="display: flex; align-items: center; gap: 8px; margin-left: auto; margin-right: 12px;">
+      <span style="font-size: 11px; color: #aaa; font-weight: bold;">🔊 Vol:</span>
+      <input id="voiceVolumeSlider" type="range" min="0" max="1" step="0.05" value="1"
+        style="width: 75px; height: 4px; cursor: pointer; accent-color: #60a5fa;">
+    </div>
+    <button id="settingsBtn" class="tab-btn">⚙ Settings</button>
+  </div>
+
+  <div id="cueBoard">
+    <div id="waiting" class="waiting">WAITING FOR CUE…</div>
+    <div id="cueDisplay" class="cue-display" style="display:none;">
+      <div id="actions" class="actions"></div>
+    </div>
+  </div>
+
+  <div id="settings">
+    <div class="settings-section">
+      <div class="settings-title">Display</div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-label">Transparent background</div>
+          <div class="setting-description">Remove the Cue Board panel behind the actions.</div>
+        </div>
+        <div id="transparentToggle" class="toggle" title="Toggle transparent background"></div>
+      </div>
+      <div class="setting-row" style="margin-top: 14px;">
+        <div class="setting-label">Icon size</div>
+        <div id="iconSizeValue">80px</div>
+      </div>
+      <div class="slider-wrap">
+        <input id="iconSize" type="range" min="32" max="200" step="1" value="80">
+        <div class="slider-values">
+          <span>32px</span>
+          <span>200px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Auto Detection</div>
+      <div id="status" class="status">Loading libraries…</div>
+      <div class="auto-row">
+        <label>Auto-read Kerapac chat</label>
+        <div id="autoToggle" class="toggle" title="Toggle auto chat reading"></div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Cue Testing</div>
+      <div class="test-grid">
+        <button class="test-btn shatter" data-id="shatter">1 · WALK UNDER</button>
+        <button class="test-btn slam" data-id="slam">2 · DODGE SLAMS</button>
+        <button class="test-btn lightning" data-id="lightning">3 · LIGHTNING</button>
+        <button class="test-btn phase2" data-id="phase2">4 · PHASE 2</button>
+        <button class="test-btn phase3" data-id="phase3">5 · PHASE 3</button>
+        <button class="test-btn phase4" data-id="phase4">6 · PHASE 4</button>
+        <button class="test-btn def" data-id="def">7 · DEFENSIVE</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <div class="settings-title" style="margin-bottom:0;">OCR / Debug Log</div>
+        <button id="copyLogBtn" class="tab-btn" style="user-select:none;">📋 Copy Log</button>
+      </div>
+      <div id="log" class="log"></div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Controls</div>
+      <div class="help">
+        1–6 = main cues · 7 = defensive<br>
+        Auto-read watches the RuneScape chatbox.<br>
+        Keep Kerapac chat visible while auto-read is active.
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/alt1@0.1.3/dist/base/index.js"></script>
+  <script src="https://unpkg.com/alt1@0.1.3/dist/ocr/index.js"></script>
+  <script src="https://unpkg.com/alt1@0.1.3/dist/chatbox/index.js"></script>
+
+  <script>
+  const CUES = {
+    shatter: {
+      title: "WALK UNDER",
+      actions: [
+        { type: "text", text: "WALK UNDER" },
+        { type: "icon", src: "icons/freedom.png" },
+        { type: "icon", src: "icons/anticipation.png" }
+      ],
+      color: [220, 38, 38],
+      duration: 4500,
+      triggers: ["i'll tear right through you", "ill tear right through you", "tear right through you"]
+    },
+
+    slam: {
+      title: "DODGE SLAMS",
+      actions: [
+        { type: "text", text: "DODGE SLAMS" },
+        { type: "icon", src: "icons/deflect_melee.png" },
+        { type: "icon", src: "icons/freedom.png" }
+      ],
+      color: [234, 88, 12],
+      duration: 6000,
+      triggers: ["i will put you in your place", "you will break beneath me", "put you in your place", "break beneath me"]
+    },
+
+    lightning: {
+      title: "MOVE – LIGHTNING",
+      actions: [
+        { type: "text", text: "SURGE / DIVE" },
+        { type: "icon", src: "icons/debilitate.png" }
+      ],
+      color: [124, 58, 237],
+      duration: 5000,
+      triggers: ["witness the raw power of the staff", "witness the power of the staff", "raw power of the staff"]
+    },
+
+    phase2: {
+      title: "PHASE 2",
+      actions: [
+        { type: "text", text: "PHASE 2" },
+        { type: "text", text: "ECHOES START" }
+      ],
+      color: [37, 99, 235],
+      duration: 4000,
+      triggers: ["i control the threads of time", "the time threads have split"]
+    },
+
+    phase3: {
+      title: "PHASE 3",
+      actions: [
+        { type: "text", text: "PHASE 3" }
+      ],
+      color: [8, 145, 178],
+      duration: 4000,
+      triggers: ["contain all its power", "all. its. power", "can contain"]
+    },
+
+    phase4: {
+      title: "PHASE 4 – ECHOES",
+      actions: [
+        { type: "text", text: "KILL ECHOES" },
+        { type: "text", text: "THEN KERAPAC" }
+      ],
+      color: [190, 24, 93],
+      duration: 6000,
+      triggers: ["look at what you've done", "fractured the threads of time", "you've fractured"]
+    },
+
+    def: {
+      title: "DEFENSIVE",
+      actions: [
+        { type: "icon", src: "icons/debilitate.png" },
+        { type: "icon", src: "icons/devotion.png" },
+        { type: "text", text: "PROTECT" }
+      ],
+      color: [75, 85, 99],
+      duration: 4000,
+      triggers: []
+    }
+  };
+
+  let autoEnabled = true;
+  let lastFired = {};
+  let reader = null;
+  let pollTimer = null;
+  let foundChat = false;
+  let lastLogged = "";
+  let currentCue = null;
+  let masterVoiceVolume = 1.0;
+  const overlayIconCache = {};
+
+  const DEFAULT_ICON_SIZE = 80;
+  const MIN_ICON_SIZE = 32;
+  const MAX_ICON_SIZE = 200;
+  let iconSize = DEFAULT_ICON_SIZE;
+  let transparentBackground = false;
+
+  const statusEl = document.getElementById("status");
+  const logEl = document.getElementById("log");
+  const autoToggle = document.getElementById("autoToggle");
+  const voiceVolumeSlider = document.getElementById("voiceVolumeSlider");
+  const cueBoard = document.getElementById("cueBoard");
+  const settings = document.getElementById("settings");
+  const settingsBtn = document.getElementById("settingsBtn");
+  const waiting = document.getElementById("waiting");
+  const cueDisplay = document.getElementById("cueDisplay");
+  const actionsEl = document.getElementById("actions");
+  const transparentToggle = document.getElementById("transparentToggle");
+  const iconSizeSlider = document.getElementById("iconSize");
+  const iconSizeValue = document.getElementById("iconSizeValue");
+
+  voiceVolumeSlider.addEventListener("input", () => {
+    masterVoiceVolume = Number(voiceVolumeSlider.value);
+  });
+
+  function loadDisplaySettings() {
+    try {
+      const savedSize = localStorage.getItem("kerapac_icon_size");
+      const savedTransparent = localStorage.getItem("kerapac_transparent");
+      if (savedSize !== null) {
+        const parsed = Number(savedSize);
+        if (Number.isFinite(parsed)) iconSize = Math.max(MIN_ICON_SIZE, Math.min(MAX_ICON_SIZE, parsed));
+      }
+      if (savedTransparent !== null) transparentBackground = savedTransparent === "true";
+    } catch (e) {}
+    iconSizeSlider.value = iconSize;
+    transparentToggle.classList.toggle("on", transparentBackground);
+    applyDisplaySettings();
+  }
+
+  function saveDisplaySettings() {
+    try {
+      localStorage.setItem("kerapac_icon_size", String(iconSize));
+      localStorage.setItem("kerapac_transparent", String(transparentBackground));
+    } catch (e) {}
+  }
+
+  function applyDisplaySettings() {
+    const imageSize = Math.max(16, Math.round(iconSize * 0.78));
+    document.body.style.setProperty("--icon-size", iconSize + "px");
+    document.body.style.setProperty("--icon-image-size", imageSize + "px");
+    document.body.classList.toggle("transparent-mode", transparentBackground);
+    iconSizeSlider.value = iconSize;
+    iconSizeValue.textContent = iconSize + "px";
+    transparentToggle.classList.toggle("on", transparentBackground);
+    saveDisplaySettings();
+  }
+
+  iconSizeSlider.addEventListener("input", () => {
+    iconSize = Number(iconSizeSlider.value);
+    applyDisplaySettings();
+  });
+
+  transparentToggle.addEventListener("click", () => {
+    transparentBackground = !transparentBackground;
+    applyDisplaySettings();
+    log("Transparent background " + (transparentBackground ? "enabled" : "disabled"), "info");
+  });
+
+  settingsBtn.addEventListener("click", () => {
+    const showingSettings = settings.style.display === "block";
+    if (showingSettings) {
+      settings.style.display = "none";
+      cueBoard.style.display = "block";
+      settingsBtn.textContent = "⚙ Settings";
+    } else {
+      settings.style.display = "block";
+      cueBoard.style.display = "none";
+      settingsBtn.textContent = "← Cue Board";
+    }
+  });
+
+  function setStatus(msg, cls = "") {
+    statusEl.textContent = msg;
+    statusEl.className = "status " + cls;
+  }
+
+  function log(msg, cls = "") {
+    const d = document.createElement("div");
+    d.className = cls;
+    d.textContent = new Date().toLocaleTimeString() + "  " + msg;
+    logEl.prepend(d);
+    while (logEl.children.length > 80) logEl.removeChild(logEl.lastChild);
+  }
+
+  document.getElementById("copyLogBtn").addEventListener("click", () => {
+    const lines = Array.from(logEl.children).map(d => d.textContent).reverse().join("\n");
+    const restoreLabel = () => setTimeout(() => { copyLogBtn.textContent = "📋 Copy Log"; }, 1200);
+    const copyLogBtn = document.getElementById("copyLogBtn");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(lines).then(() => {
+        copyLogBtn.textContent = "✅ Copied";
+        restoreLabel();
+      }).catch(() => {});
+    }
+  });
+
+  function iconName(src) {
+    const names = {
+      "icons/freedom.png": "FREEDOM",
+      "icons/anticipation.png": "ANTICIPATION",
+      "icons/deflect_melee.png": "DEFLECT MELEE",
+      "icons/debilitate.png": "DEBILITATE",
+      "icons/devotion.png": "DEVOTION"
+    };
+    return names[src] || "";
+  }
+
+  function renderCue(id) {
+    const cue = CUES[id];
+    if (!cue) return;
+
+    currentCue = id;
+    waiting.style.display = "none";
+    cueDisplay.style.display = "flex";
+    cueDisplay.style.borderColor = `rgb(${cue.color[0]}, ${cue.color[1]}, ${cue.color[2]})`;
+    actionsEl.innerHTML = "";
+
+    cue.actions.forEach((action, index) => {
+      if (index > 0) {
+        const arrow = document.createElement("div");
+        arrow.className = "arrow";
+        arrow.textContent = "→";
+        actionsEl.appendChild(arrow);
+      }
+
+      if (action.type === "icon") {
+        const box = document.createElement("div");
+        box.className = "action icon";
+        const img = document.createElement("img");
+        img.src = action.src;
+        img.alt = "";
+        img.onerror = () => {
+          box.className = "action text";
+          box.textContent = iconName(action.src) || "ICON";
+        };
+        box.appendChild(img);
+        const label = document.createElement("div");
+        label.className = "action-label";
+        label.textContent = iconName(action.src);
+        box.appendChild(label);
+        actionsEl.appendChild(box);
+      } else {
+        const box = document.createElement("div");
+        box.className = "action text";
+        box.textContent = action.text;
+        actionsEl.appendChild(box);
+      }
+    });
+  }
+
+  function clearCueDisplay() {
+    currentCue = null;
+    cueDisplay.style.display = "none";
+    waiting.style.display = "flex";
+    actionsEl.innerHTML = "";
+  }
+
+  function color(r, g, b) {
+    const lib = window.A1lib || window.a1lib || null;
+    if (lib && typeof lib.mixColor === "function") return lib.mixColor(r, g, b);
+    return (((r & 255) << 24) | ((g & 255) << 16) | ((b & 255) << 8) | 255) >>> 0;
+  }
+
+  const COLORS = {
+    black: color(0, 0, 0),
+    white: color(255, 255, 255),
+    yellow: color(255, 235, 40),
+    red: color(255, 30, 30),
+    green: color(0, 255, 80),
+    blue: color(60, 160, 255)
+  };
+
+  function rnd(n) { return Math.round(n); }
+
+  function textCenteredAt(text, col, size, cx, y, duration) {
+    if (!window.alt1) return;
+    try {
+      const w = measureTextWidth(text, size);
+      alt1.overLayText(text, col, size, rnd(cx - w / 2), rnd(y), rnd(duration));
+    } catch (e) {}
+  }
+
+  const measureCanvas = document.createElement("canvas");
+  const measureCtx = measureCanvas.getContext("2d");
+  function measureTextWidth(text, size) {
+    measureCtx.font = "bold " + size + "px sans-serif";
+    return measureCtx.measureText(text).width;
+  }
+
+  function showBanner(id) {
+    const cue = CUES[id];
+    if (!cue) return;
+
+    const now = Date.now();
+    const cooldown = cue.cooldownMs || 2500;
+    if (lastFired[id] && now - lastFired[id] < cooldown) return;
+    lastFired[id] = now;
+
+    renderCue(id);
+    setTimeout(() => {
+      if (currentCue === id) clearCueDisplay();
+    }, cue.duration);
+
+    // Overlay
+    if (!window.alt1) return;
+    try {
+      alt1.overLayClearGroup("kerapac-cue");
+      alt1.overLaySetGroup("kerapac-cue");
+
+      const cx = Math.round(alt1.rsWidth / 2);
+      const cy = Math.round(alt1.rsHeight / 2) - 40;
+      const panelW = 520;
+      const panelH = 90;
+
+      // Simple text-focused overlay (icons are harder without pre-encoded data)
+      const mainText = cue.actions.filter(a => a.type === "text").map(a => a.text).join("  →  ") || cue.title;
+      textCenteredAt(mainText, color(cue.color[0], cue.color[1], cue.color[2]), 32, cx, cy, cue.duration);
+
+      log("CUE → " + mainText, "hit");
+      speakActions(mainText);
+    } catch (e) {
+      log("Overlay error: " + (e.message || e), "info");
+    }
+  }
+
+  function speakActions(text) {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.replace(/→/g, ", "));
+    utterance.rate = 1.35;
+    utterance.pitch = 1.1;
+    utterance.volume = masterVoiceVolume;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  document.querySelectorAll(".test-btn").forEach(button => {
+    button.addEventListener("click", () => showBanner(button.dataset.id));
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+    const map = {
+      "1": "shatter", "2": "slam", "3": "lightning",
+      "4": "phase2", "5": "phase3", "6": "phase4", "7": "def"
+    };
+    if (map[e.key]) {
+      e.preventDefault();
+      showBanner(map[e.key]);
+    }
+  });
+
+  autoToggle.addEventListener("click", () => {
+    autoEnabled = !autoEnabled;
+    autoToggle.classList.toggle("on", autoEnabled);
+    if (autoEnabled) startAuto();
+    else {
+      stopAuto();
+      setStatus(foundChat ? "Chat found — Auto OFF" : "Auto OFF");
+      log("Auto-read disabled");
+    }
+  });
+
+  function matches(text, trigger) {
+    return text.toLowerCase().indexOf(trigger.toLowerCase()) !== -1;
+  }
+
+  function clean(str) {
+    return (str || "").replace(/[^\x20-\x7E]/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  function processLines(lines) {
+    if (!autoEnabled || !lines) return;
+    for (const line of lines) {
+      let raw = "";
+      if (typeof line === "string") raw = line;
+      else if (line && typeof line.text === "string") raw = line.text;
+      else if (line && line.message) raw = String(line.message);
+      else {
+        try { raw = JSON.stringify(line); } catch (_) { raw = ""; }
+      }
+
+      const text = clean(raw);
+      if (!text || text.length < 4) continue;
+
+      if (text !== lastLogged && text.length > 8) {
+        lastLogged = text;
+        log("READ: " + text.slice(0, 100), "info");
+      }
+
+      for (const [id, cue] of Object.entries(CUES)) {
+        for (const trigger of cue.triggers) {
+          if (matches(text, trigger)) {
+            log("TRIGGER → " + id, "hit");
+            showBanner(id);
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  function startAuto() {
+    if (!window.alt1) {
+      setStatus("Open this page inside Alt1 Toolkit", "err");
+      return;
+    }
+    stopAuto();
+    try {
+      if (window.Chatbox && Chatbox.default) {
+        reader = new Chatbox.default();
+        reader.readargs = { colors: [A1lib.mixColor(255, 255, 255), A1lib.mixColor(0, 255, 0), A1lib.mixColor(255, 0, 0), A1lib.mixColor(0, 255, 255)] };
+        foundChat = true;
+        setStatus("Chat found — Auto ON", "ok");
+        log("Chatbox reader started", "hit");
+      } else {
+        setStatus("Chatbox library missing — manual only", "warn");
+      }
+    } catch (e) {
+      setStatus("Chat reader error", "err");
+      log("Chat init error: " + (e.message || e), "info");
+    }
+
+    pollTimer = setInterval(() => {
+      if (!autoEnabled || !reader) return;
+      try {
+        const lines = reader.read();
+        if (lines && lines.length) processLines(lines);
+      } catch (e) {}
+    }, 300);
+  }
+
+  function stopAuto() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  function init() {
+    loadDisplaySettings();
+    if (!window.alt1) {
+      setStatus("Open this page inside Alt1 Toolkit", "err");
+      log("Alt1 was not detected");
+      return;
+    }
+    if (alt1.permissionPixel === false || alt1.permissionOverlay === false) {
+      setStatus("Grant Pixel + Overlay permissions", "warn");
+      log("Missing Pixel or Overlay permission");
+    } else {
+      setStatus("Ready — enable Auto-read", "ok");
+    }
+    setTimeout(() => {
+      if (window.Chatbox) log("Chatbox library available", "hit");
+      else log("Chatbox library not exposed", "info");
+    }, 800);
+    startAuto();
+    autoToggle.classList.toggle("on", autoEnabled);
+  }
+
+  if (window.alt1) init();
+  else setTimeout(init, 500);
+
+  window.processLines = processLines;
+  </script>
+</body>
+</html>
