@@ -422,7 +422,7 @@
         <button class="test-btn phase2" data-id="phase2">4 · PHASE 2</button>
         <button class="test-btn phase3" data-id="phase3">5 · PHASE 3</button>
         <button class="test-btn phase4" data-id="phase4">6 · PHASE 4</button>
-        <button class="test-btn def" data-id="def">7 · DEFENSIVE</button>
+        <button class="test-btn def" data-id="def">7 · PROTECT MAGIC</button>
       </div>
     </div>
 
@@ -518,11 +518,11 @@
     },
 
     def: {
-      title: "DEFENSIVE",
+      title: "PROTECT MAGIC",
       actions: [
+        { type: "text", text: "PROTECT MAGIC" },
         { type: "icon", src: "icons/debilitate.png" },
-        { type: "icon", src: "icons/devotion.png" },
-        { type: "text", text: "PROTECT" }
+        { type: "icon", src: "icons/devotion.png" }
       ],
       color: [75, 85, 99],
       duration: 4000,
@@ -834,22 +834,34 @@
     }
   });
 
-  function matches(text, trigger) {
-    return text.toLowerCase().indexOf(trigger.toLowerCase()) !== -1;
+  function clean(str) {
+    return (str || "")
+      .toString()
+      .toLowerCase()
+      .replace(/[’']/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
-  function clean(str) {
-    return (str || "").replace(/[^\x20-\x7E]/g, " ").replace(/\s+/g, " ").trim();
+  function matches(text, trigger) {
+    const a = clean(text).replace(/\s/g, "");
+    const b = clean(trigger).replace(/\s/g, "");
+    if (!a || !b) return false;
+    return a.includes(b);
   }
 
   function processLines(lines) {
-    if (!autoEnabled || !lines) return;
     for (const line of lines) {
       let raw = "";
-      if (typeof line === "string") raw = line;
-      else if (line && typeof line.text === "string") raw = line.text;
-      else if (line && line.message) raw = String(line.message);
-      else {
+
+      if (typeof line === "string") {
+        raw = line;
+      } else if (line && line.text) {
+        raw = line.text;
+      } else if (line && line.fragments) {
+        raw = line.fragments.map(f => f.text || "").join("");
+      } else {
         try { raw = JSON.stringify(line); } catch (_) { raw = ""; }
       }
 
@@ -873,34 +885,191 @@
     }
   }
 
-  function startAuto() {
-    if (!window.alt1) {
-      setStatus("Open this page inside Alt1 Toolkit", "err");
-      return;
-    }
-    stopAuto();
+  function captureScreen() {
+    let img = null;
+    const lib = window.A1lib || window.a1lib || null;
+
     try {
-      if (window.Chatbox && Chatbox.default) {
-        reader = new Chatbox.default();
-        reader.readargs = { colors: [A1lib.mixColor(255, 255, 255), A1lib.mixColor(0, 255, 0), A1lib.mixColor(255, 0, 0), A1lib.mixColor(0, 255, 255)] };
-        foundChat = true;
-        setStatus("Chat found — Auto ON", "ok");
-        log("Chatbox reader started", "hit");
-      } else {
-        setStatus("Chatbox library missing — manual only", "warn");
+      if (lib && typeof lib.captureHoldFullRs === "function") {
+        img = lib.captureHoldFullRs();
+      } else if (lib && typeof lib.captureHold === "function") {
+        img = lib.captureHold(0, 0, alt1.rsWidth, alt1.rsHeight);
+      } else if (alt1.captureHoldFullRs) {
+        img = alt1.captureHoldFullRs();
       }
     } catch (e) {
-      setStatus("Chat reader error", "err");
-      log("Chat init error: " + (e.message || e), "info");
+      log("Capture error: " + (e.message || e), "info");
     }
 
-    pollTimer = setInterval(() => {
-      if (!autoEnabled || !reader) return;
+    return img;
+  }
+
+  function findRectangle(obj, depth = 0) {
+    if (!obj || depth > 8) return null;
+
+    if (
+      typeof obj === "object" &&
+      typeof obj.x === "number" &&
+      typeof obj.y === "number" &&
+      typeof obj.width === "number" &&
+      typeof obj.height === "number" &&
+      obj.width > 30 &&
+      obj.height > 10
+    ) {
+      return {
+        x: Math.round(obj.x),
+        y: Math.round(obj.y),
+        width: Math.round(obj.width),
+        height: Math.round(obj.height)
+      };
+    }
+
+    if (typeof obj !== "object") return null;
+
+    for (const key of Object.keys(obj)) {
       try {
-        const lines = reader.read();
-        if (lines && lines.length) processLines(lines);
-      } catch (e) {}
-    }, 300);
+        const result = findRectangle(obj[key], depth + 1);
+        if (result) return result;
+      } catch (_) {}
+    }
+
+    return null;
+  }
+
+  function outline(col, x, y, w, h, duration, thickness = 3) {
+    if (!window.alt1) return;
+    try {
+      // Top
+      alt1.overLayLine(col, thickness, rnd(x), rnd(y), rnd(x + w), rnd(y), rnd(duration));
+      // Bottom
+      alt1.overLayLine(col, thickness, rnd(x), rnd(y + h), rnd(x + w), rnd(y + h), rnd(duration));
+      // Left
+      alt1.overLayLine(col, thickness, rnd(x), rnd(y), rnd(x), rnd(y + h), rnd(duration));
+      // Right
+      alt1.overLayLine(col, thickness, rnd(x + w), rnd(y), rnd(x + w), rnd(y + h), rnd(duration));
+    } catch (e) {}
+  }
+
+  function highlightChat(r) {
+    if (!r) {
+      log("Chat found, but no rectangle was available", "info");
+      return;
+    }
+
+    try {
+      alt1.overLayClearGroup("kerapac-chat");
+      alt1.overLaySetGroup("kerapac-chat");
+
+      const green = color(0, 255, 60);
+      outline(green, r.x, r.y, r.width, r.height, 10000, 8);
+
+      const yellow = color(255, 255, 0);
+      outline(yellow, r.x + 5, r.y + 5, Math.max(1, r.width - 10), Math.max(1, r.height - 10), 10000, 2);
+
+      textCenteredAt("CHAT DETECTED", green, 20, r.x + Math.round(r.width / 2), Math.max(25, r.y - 12), 10000);
+
+      log("CHAT HIGHLIGHT → " + r.x + "," + r.y + " " + r.width + "x" + r.height, "hit");
+    } catch (e) {
+      log("Chat highlight error: " + (e.message || e), "info");
+    }
+  }
+
+  function tick() {
+    if (!autoEnabled || !window.alt1) return;
+
+    try {
+      if (!reader || typeof reader.find !== "function") return;
+
+      const img = captureScreen();
+      if (!img) return;
+
+      if (!reader.pos) {
+        const pos = reader.find(img);
+
+        if (pos) {
+          foundChat = true;
+          setStatus("Chat found — watching…", "ok");
+          log("Chatbox located", "hit");
+
+          const rect = findRectangle(reader.pos);
+          if (rect) {
+            highlightChat(rect);
+          } else {
+            log("Chatbox found but no rectangle was exposed", "info");
+          }
+        } else {
+          setStatus("Looking for chatbox… (keep it visible)", "warn");
+          return;
+        }
+      }
+
+      const lines = reader.read(img);
+      if (lines && lines.length) {
+        processLines(lines);
+      }
+    } catch (e) {
+      if (Math.random() < 0.03) {
+        log("Tick error: " + (e.message || e), "info");
+      }
+    }
+  }
+
+  function startAuto() {
+    if (!window.alt1) {
+      setStatus("Alt1 not detected", "err");
+      autoEnabled = false;
+      autoToggle.classList.remove("on");
+      return;
+    }
+
+    if (!reader) {
+      try {
+        const CB = window.Chatbox && (window.Chatbox.default || window.Chatbox);
+
+        if (CB) {
+          reader = new CB();
+
+          const lib = window.A1lib || window.a1lib || null;
+          if (lib && typeof lib.mixColor === "function") {
+            reader.readargs = reader.readargs || {};
+            reader.readargs.colors = [
+              lib.mixColor(153, 255, 153),
+              lib.mixColor(232, 4, 4),
+              lib.mixColor(255, 255, 255),
+              lib.mixColor(127, 169, 255),
+              lib.mixColor(255, 0, 0),
+              lib.mixColor(255, 255, 0),
+              lib.mixColor(255, 165, 0),
+              lib.mixColor(255, 140, 0),
+              lib.mixColor(170, 0, 214),
+              lib.mixColor(0, 255, 255),
+              lib.mixColor(255, 100, 100)
+            ];
+          }
+
+          log("ChatBoxReader created", "info");
+        } else {
+          log("ChatBoxReader global not found", "info");
+        }
+      } catch (e) {
+        log("Reader init: " + e.message, "info");
+      }
+    }
+
+    if (reader) {
+      reader.pos = null;
+    }
+
+    foundChat = false;
+
+    if (pollTimer) {
+      clearInterval(pollTimer);
+    }
+
+    pollTimer = setInterval(tick, 150);
+
+    setStatus("Auto ON — looking for chat…", "warn");
+    log("Auto-read started", "info");
   }
 
   function stopAuto() {
@@ -908,25 +1077,32 @@
       clearInterval(pollTimer);
       pollTimer = null;
     }
+    if (window.alt1) {
+      try { alt1.overLayClearGroup("kerapac-chat"); } catch (e) {}
+    }
   }
 
   function init() {
     loadDisplaySettings();
+
     if (!window.alt1) {
       setStatus("Open this page inside Alt1 Toolkit", "err");
       log("Alt1 was not detected");
       return;
     }
+
     if (alt1.permissionPixel === false || alt1.permissionOverlay === false) {
       setStatus("Grant Pixel + Overlay permissions", "warn");
       log("Missing Pixel or Overlay permission");
     } else {
       setStatus("Ready — enable Auto-read", "ok");
     }
+
     setTimeout(() => {
       if (window.Chatbox) log("Chatbox library available", "hit");
       else log("Chatbox library not exposed", "info");
     }, 800);
+
     startAuto();
     autoToggle.classList.toggle("on", autoEnabled);
   }
